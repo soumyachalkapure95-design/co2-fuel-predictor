@@ -475,26 +475,29 @@ elif page == "⛽ Nearby Fuel Stations":
                                ["📍 Auto-detect (GPS)", "✏️ Type manually"])
 
     lat, lon, city_name = None, None, None
+     if location_method == "📍 Auto-detect (GPS)":
+     st.info("📍 Since this app runs on cloud, auto GPS is not supported. Please use the option below!")
+    st.markdown("""
+    <div class="suggestion-box warn">
+        ⚠️ <b>Why GPS doesn't work on Streamlit Cloud?</b><br>
+        Streamlit Cloud runs on USA servers — so it detects
+        server location, not your real location!<br><br>
+        ✅ <b>Solution:</b> Use the <b>'Type manually'</b> option
+        and enter your city name — it works perfectly! 😊
+    </div>""", unsafe_allow_html=True)
+```
 
-    if location_method == "📍 Auto-detect (GPS)":
-        if st.button("📍 DETECT MY LOCATION"):
-            try:
-                res       = requests.get("https://ipapi.co/json/", timeout=5)
-                data      = res.json()
-                lat       = data.get("latitude")
-                lon       = data.get("longitude")
-                city_name = data.get("city", "Your City")
-                st.session_state["lat"]  = lat
-                st.session_state["lon"]  = lon
-                st.session_state["city"] = city_name
-                st.success(f"✅ Location detected: {city_name} ({lat:.4f}, {lon:.4f})")
-            except Exception:
-                st.error("❌ Could not detect location. Please type manually.")
+---
 
-        if "lat" in st.session_state:
-            lat       = st.session_state["lat"]
-            lon       = st.session_state["lon"]
-            city_name = st.session_state.get("city", "")
+## 👉 So the WORKING solution is:
+
+Tell users to use **"Type manually"** option like:
+```
+✏️ Type manually
+→ Enter: Kalaburagi, Karnataka
+→ Click SEARCH
+→ Map shows correctly! ✅
+
 
     else:
         city_input = st.text_input("Enter your city or area name",
