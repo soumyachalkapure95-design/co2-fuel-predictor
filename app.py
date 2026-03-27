@@ -330,7 +330,6 @@ elif page == "📏 Trip Distance Calculator":
     with col1:
         st.markdown("### ⛽ Fuel Details")
 
-        # ✅ FIXED — simple text inputs (no +/- buttons)
         fuel_in_tank_str = st.text_input("How many litres of fuel do you have?",
                                           value="40", placeholder="e.g. 40")
         try:
@@ -470,31 +469,33 @@ elif page == "⛽ Nearby Fuel Stations":
 
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
-    st.markdown("### 📍 Your Location")
-    location_method = st.radio("How to find your location?",
-                               ["📍 Auto-detect (GPS)", "✏️ Type manually"])
+    # ✅ FIXED — removed GPS option, only manual search
+    st.markdown("### 📍 Enter Your Location")
+
+    st.markdown("""
+    <div class="suggestion-box info">
+        ℹ️ <b>Note:</b> Since this app runs on Streamlit Cloud (remote servers),
+        auto GPS detects the server location (USA) — not your real location!
+        Please type your city name below for accurate results. 😊
+    </div>""", unsafe_allow_html=True)
+
+    city_input = st.text_input("🔍 Enter your city or area name",
+                               placeholder="e.g. Kalaburagi, Karnataka  OR  Mumbai  OR  Bengaluru")
 
     lat, lon, city_name = None, None, None
-    if location_method == "📍 Auto-detect (GPS)":
-    st.info("📍 Since this app runs on cloud, auto GPS is not supported. Please use the option below!")
-    st.markdown("""
-    <div class="suggestion-box warn">
-        ⚠️ <b>Why GPS doesn't work on Streamlit Cloud?</b><br>
-        Streamlit Cloud runs on USA servers — so it detects
-        server location, not your real location!<br><br>
-        ✅ <b>Solution:</b> Use the <b>'Type manually'</b> option
-        and enter your city name — it works perfectly! 😊
-    </div>""", unsafe_allow_html=True)
-    else:
-        city_input = st.text_input("Enter your city or area name",
-                                   placeholder="e.g. Kalaburagi, Karnataka")
-        if st.button("🔍 SEARCH"):
-            if city_input:
+
+    if st.button("🔍 SEARCH FUEL STATIONS"):
+        if city_input.strip() == "":
+            st.warning("⚠️ Please enter a city name first!")
+        else:
+            with st.spinner("Searching your location..."):
                 try:
                     geo = requests.get(
                         f"https://nominatim.openstreetmap.org/search?q={city_input}&format=json&limit=1",
-                        headers={"User-Agent": "CO2Predictor/1.0"}, timeout=5
+                        headers={"User-Agent": "CO2FuelPredictor/1.0"},
+                        timeout=8
                     ).json()
+
                     if geo:
                         lat       = float(geo[0]["lat"])
                         lon       = float(geo[0]["lon"])
@@ -504,100 +505,102 @@ elif page == "⛽ Nearby Fuel Stations":
                         st.session_state["city"] = city_name
                         st.success(f"✅ Found: {city_name} ({lat:.4f}, {lon:.4f})")
                     else:
-                        st.error("❌ Location not found. Try a different name.")
-                except Exception:
-                    st.error("❌ Search failed. Check internet connection.")
+                        st.error("❌ Location not found! Try: 'Kalaburagi' or 'Kalaburagi, Karnataka'")
 
-        if "lat" in st.session_state:
-            lat       = st.session_state["lat"]
-            lon       = st.session_state["lon"]
-            city_name = st.session_state.get("city", "")
+                except Exception:
+                    st.error("❌ Search failed. Check internet connection and try again.")
+
+    # Load from session if already searched
+    if "lat" in st.session_state and lat is None:
+        lat       = st.session_state["lat"]
+        lon       = st.session_state["lon"]
+        city_name = st.session_state.get("city", "")
 
     # ── Map + Stations
     if lat and lon:
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown(f"### 🗺️ Fuel Stations near {city_name}")
 
-        try:
-            overpass_url   = "http://overpass-api.de/api/interpreter"
-            # ✅ FIXED — 10 km radius
-            overpass_query = f"""
-            [out:json];
-            node["amenity"="fuel"](around:10000,{lat},{lon});
-            out body;
-            """
-            response = requests.post(overpass_url, data=overpass_query, timeout=10)
-            elements = response.json().get("elements", [])
+        with st.spinner("Finding nearby fuel stations..."):
+            try:
+                overpass_url   = "http://overpass-api.de/api/interpreter"
+                overpass_query = f"""
+                [out:json];
+                node["amenity"="fuel"](around:10000,{lat},{lon});
+                out body;
+                """
+                response = requests.post(overpass_url, data=overpass_query, timeout=15)
+                elements = response.json().get("elements", [])
 
-            if elements:
-                st.markdown(f"**Found {len(elements)} fuel stations within 10 km!**")
+                if elements:
+                    st.success(f"✅ Found {len(elements)} fuel stations within 10 km!")
 
-                stations = []
-                for el in elements[:20]:
-                    tags    = el.get("tags", {})
-                    s_lat   = el.get("lat", lat)
-                    s_lon   = el.get("lon", lon)
-                    dist_km = round(((s_lat - lat)**2 + (s_lon - lon)**2)**0.5 * 111, 2)
-                    stations.append({
-                        "Name"    : tags.get("name", tags.get("brand", "Fuel Station")),
-                        "Brand"   : tags.get("brand", "Unknown"),
-                        "Distance": f"{dist_km} km",
-                        "dist_val": dist_km,
-                        "Lat"     : s_lat,
-                        "Lon"     : s_lon,
-                        "Address" : tags.get("addr:street", tags.get("addr:city", "—"))
+                    stations = []
+                    for el in elements[:20]:
+                        tags    = el.get("tags", {})
+                        s_lat   = el.get("lat", lat)
+                        s_lon   = el.get("lon", lon)
+                        dist_km = round(((s_lat - lat)**2 + (s_lon - lon)**2)**0.5 * 111, 2)
+                        stations.append({
+                            "Name"    : tags.get("name", tags.get("brand", "Fuel Station")),
+                            "Brand"   : tags.get("brand", "Unknown"),
+                            "Distance": f"{dist_km} km",
+                            "dist_val": dist_km,
+                            "Lat"     : s_lat,
+                            "Lon"     : s_lon,
+                            "Address" : tags.get("addr:street", tags.get("addr:city", "—"))
+                        })
+
+                    # Sort by distance
+                    stations = sorted(stations, key=lambda x: x["dist_val"])
+
+                    # Table
+                    station_df = pd.DataFrame(stations)
+                    st.dataframe(
+                        station_df[["Name", "Brand", "Distance", "Address"]],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    # Map — Red = You, Green = Fuel Stations
+                    map_data = pd.DataFrame({
+                        "lat"  : [lat]  + [s["Lat"] for s in stations],
+                        "lon"  : [lon]  + [s["Lon"] for s in stations],
+                        "size" : [120]  + [50] * len(stations),
+                        "color": [[255, 50, 50, 200]] + [[0, 210, 100, 200]] * len(stations)
                     })
 
-                # Sort by distance
-                stations = sorted(stations, key=lambda x: x["dist_val"])
+                    st.map(
+                        map_data,
+                        latitude="lat",
+                        longitude="lon",
+                        size="size",
+                        color="color",
+                        zoom=12
+                    )
 
-                # Table
-                station_df = pd.DataFrame(stations)
-                st.dataframe(
-                    station_df[["Name", "Brand", "Distance", "Address"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
+                    # Legend
+                    st.markdown("""
+                    <div class="suggestion-box info" style="display:flex;gap:2rem;">
+                        <span>🔴 <b>Red dot</b> = Your Location</span>
+                        <span>🟢 <b>Green dots</b> = Fuel Stations</span>
+                    </div>""", unsafe_allow_html=True)
 
-                # ✅ FIXED MAP — Red = You, Green = Fuel Stations
-                map_data = pd.DataFrame({
-                    "lat"  : [lat]  + [s["Lat"] for s in stations],
-                    "lon"  : [lon]  + [s["Lon"] for s in stations],
-                    "size" : [120]  + [50] * len(stations),
-                    "color": [[255, 50, 50, 200]] + [[0, 210, 100, 200]] * len(stations)
-                })
+                    # Nearest station
+                    nearest = stations[0]
+                    st.markdown(f"""
+                    <div class="suggestion-box good">
+                        ✅ <b>Nearest Station:</b> {nearest['Name']} — {nearest['Distance']} away<br>
+                        📍 Address: {nearest['Address']}<br>
+                        🧭 Brand: {nearest['Brand']}
+                    </div>""", unsafe_allow_html=True)
 
-                st.map(
-                    map_data,
-                    latitude="lat",
-                    longitude="lon",
-                    size="size",
-                    color="color",
-                    zoom=12
-                )
+                else:
+                    st.warning("⚠️ No fuel stations found within 10 km. Try a nearby bigger city name.")
 
-                # Legend
-                st.markdown("""
-                <div class="suggestion-box info" style="display:flex;gap:2rem;">
-                    <span>🔴 <b>Red dot</b> = Your Location</span>
-                    <span>🟢 <b>Green dots</b> = Fuel Stations</span>
-                </div>""", unsafe_allow_html=True)
-
-                # Nearest station
-                nearest = stations[0]
-                st.markdown(f"""
-                <div class="suggestion-box good">
-                    ✅ <b>Nearest Station:</b> {nearest['Name']} — {nearest['Distance']} away<br>
-                    📍 Address: {nearest['Address']}<br>
-                    🧭 Brand: {nearest['Brand']}
-                </div>""", unsafe_allow_html=True)
-
-            else:
-                st.warning("⚠️ No fuel stations found within 10 km. Try a different location.")
-
-        except Exception:
-            st.error("❌ Could not fetch stations. Check internet connection.")
-            st.info("💡 Try searching on Google Maps: 'fuel stations near me'")
+            except Exception:
+                st.error("❌ Could not fetch fuel stations. Check internet and try again.")
+                st.info("💡 Alternative: Search 'petrol bunk near me' on Google Maps!")
 
         # Fuel prices
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
