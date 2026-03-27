@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="CO2 & Fuel Predictor",
+    page_title="CO2 & FUEL PREDICTOR-Smart Vehicle Analytics Platform",
     page_icon="🚗",
     layout="wide"
 )
