@@ -89,7 +89,7 @@ def load_data():
     df.dropna(inplace=True)
     return df
 
-bundle    = load_model()
+bundle     = load_model()
 co2_model  = bundle["co2_model"]
 fuel_model = bundle["fuel_model"]
 le_vc      = bundle["le_vc"]
@@ -119,9 +119,7 @@ TRANSMISSION_PREFIX = {
     "M":  "Manual"
 }
 
-# Fuel price per litre (INR) - editable
-FUEL_PRICES = {"D": 94, "E": 65, "N": 80, "X": 106, "Z": 112}
-
+FUEL_PRICES  = {"D": 94, "E": 65, "N": 80, "X": 106, "Z": 112}
 HISTORY_FILE = "prediction_history.csv"
 
 def trans_label(code):
@@ -214,13 +212,11 @@ if page == "🏠 Home — Predict":
         pred_co2  = co2_model.predict(user_data)[0]
         pred_fuel = fuel_model.predict(user_data)[0]
 
-        # Save to history
         save_to_history(vehicle_class, transmission, fuel_type, engine_size, cylinders, pred_co2, pred_fuel)
 
         co2_cls  = "good" if pred_co2  < avg_co2  * 0.85 else ("warn" if pred_co2  < avg_co2  * 1.15 else "bad")
         fuel_cls = "good" if pred_fuel < avg_fuel * 0.85 else ("warn" if pred_fuel < avg_fuel * 1.15 else "bad")
 
-        # ── Results
         st.markdown("### 📊 Prediction Results")
         c1, c2 = st.columns(2)
         with c1:
@@ -236,7 +232,6 @@ if page == "🏠 Home — Predict":
                 <div style="color:#8b949e;font-size:0.85rem;margin-top:0.4rem">Dataset avg: {avg_fuel:.1f} L/100km</div>
             </div>""", unsafe_allow_html=True)
 
-        # ── Graphs
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("### 📈 Visual Comparison")
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
@@ -264,7 +259,6 @@ if page == "🏠 Home — Predict":
         plt.tight_layout()
         st.pyplot(fig)
 
-        # ── Suggestions
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("### 💡 Personalized Suggestions")
 
@@ -296,7 +290,6 @@ if page == "🏠 Home — Predict":
         tip_cls, tip_txt = fuel_tips.get(fuel_type, ("info", "⛽ Maintain fuel system regularly."))
         st.markdown(f'<div class="suggestion-box {tip_cls}">{tip_txt}</div>', unsafe_allow_html=True)
 
-        # ── Trip suggestion
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("### 🛣️ Quick Trip Estimate")
         fuel_price = FUEL_PRICES.get(fuel_type, 100)
@@ -336,17 +329,49 @@ elif page == "📏 Trip Distance Calculator":
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### ⛽ Fuel Details")
-        fuel_in_tank = st.number_input("How many litres of fuel do you have?", min_value=1.0, max_value=200.0, value=40.0, step=1.0)
-        fuel_consumption = st.number_input("Your vehicle's fuel consumption (L/100km)", min_value=1.0, max_value=30.0, value=avg_fuel, step=0.1,
-                                           help="Use your predicted value from Home page or enter manually")
+
+        # ✅ FIXED — simple text inputs (no +/- buttons)
+        fuel_in_tank_str = st.text_input("How many litres of fuel do you have?",
+                                          value="40", placeholder="e.g. 40")
+        try:
+            fuel_in_tank = float(fuel_in_tank_str)
+        except:
+            fuel_in_tank = 40.0
+            st.warning("⚠️ Enter a valid number for fuel in tank.")
+
+        fuel_consumption_str = st.text_input("Your vehicle's fuel consumption (L/100km)",
+                                              value=str(round(avg_fuel, 1)),
+                                              placeholder="e.g. 10.5",
+                                              help="Use predicted value from Home page or enter manually")
+        try:
+            fuel_consumption = float(fuel_consumption_str)
+        except:
+            fuel_consumption = avg_fuel
+            st.warning("⚠️ Enter a valid number for fuel consumption.")
+
         fuel_type_trip = st.selectbox("Fuel Type", list(FUEL_TYPE_MAP.keys()),
                                       format_func=lambda x: FUEL_TYPE_MAP[x])
-        fuel_price_inp = st.number_input("Fuel price per litre (₹)", min_value=50, max_value=200, value=FUEL_PRICES.get(fuel_type_trip, 100))
+
+        fuel_price_str = st.text_input("Fuel price per litre (₹)",
+                                        value=str(FUEL_PRICES.get(fuel_type_trip, 100)),
+                                        placeholder="e.g. 94")
+        try:
+            fuel_price_inp = float(fuel_price_str)
+        except:
+            fuel_price_inp = 100.0
+            st.warning("⚠️ Enter a valid fuel price.")
 
     with col2:
         st.markdown("### 🛣️ Trip Details")
-        trip_distance = st.number_input("OR enter trip distance (km) to calculate fuel needed",
-                                        min_value=0.0, max_value=10000.0, value=0.0, step=10.0)
+
+        trip_distance_str = st.text_input("Enter trip distance (km) to calculate fuel needed",
+                                           value="0", placeholder="e.g. 150")
+        try:
+            trip_distance = float(trip_distance_str)
+        except:
+            trip_distance = 0.0
+            st.warning("⚠️ Enter a valid trip distance.")
+
         driving_style = st.selectbox("Driving Style", ["City driving", "Highway driving", "Mixed"])
         style_factor  = {"City driving": 1.15, "Highway driving": 0.90, "Mixed": 1.0}[driving_style]
 
@@ -359,7 +384,7 @@ elif page == "📏 Trip Distance Calculator":
 
         if fuel_in_tank > 0:
             distance_possible = (fuel_in_tank / adj_consumption) * 100
-            cost_of_trip      = (fuel_in_tank * fuel_price_inp)
+            cost_of_trip      = fuel_in_tank * fuel_price_inp
 
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -382,8 +407,8 @@ elif page == "📏 Trip Distance Calculator":
                 </div>""", unsafe_allow_html=True)
 
         if trip_distance > 0:
-            fuel_needed   = (trip_distance / 100) * adj_consumption
-            trip_cost     = fuel_needed * fuel_price_inp
+            fuel_needed    = (trip_distance / 100) * adj_consumption
+            trip_cost      = fuel_needed * fuel_price_inp
             refills_needed = max(0, fuel_needed - fuel_in_tank)
 
             st.markdown("<hr class='divider'>", unsafe_allow_html=True)
@@ -408,7 +433,6 @@ elif page == "📏 Trip Distance Calculator":
                     <div class="result-value {cls}" style="font-size:1.2rem">{msg}</div>
                 </div>""", unsafe_allow_html=True)
 
-        # Distance milestones
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("### 🏙️ Where can you go with your fuel?")
         milestones = {
@@ -455,10 +479,10 @@ elif page == "⛽ Nearby Fuel Stations":
     if location_method == "📍 Auto-detect (GPS)":
         if st.button("📍 DETECT MY LOCATION"):
             try:
-                res  = requests.get("https://ipapi.co/json/", timeout=5)
-                data = res.json()
-                lat  = data.get("latitude")
-                lon  = data.get("longitude")
+                res       = requests.get("https://ipapi.co/json/", timeout=5)
+                data      = res.json()
+                lat       = data.get("latitude")
+                lon       = data.get("longitude")
                 city_name = data.get("city", "Your City")
                 st.session_state["lat"]  = lat
                 st.session_state["lon"]  = lon
@@ -468,12 +492,13 @@ elif page == "⛽ Nearby Fuel Stations":
                 st.error("❌ Could not detect location. Please type manually.")
 
         if "lat" in st.session_state:
-            lat  = st.session_state["lat"]
-            lon  = st.session_state["lon"]
+            lat       = st.session_state["lat"]
+            lon       = st.session_state["lon"]
             city_name = st.session_state.get("city", "")
 
     else:
-        city_input = st.text_input("Enter your city or area name", placeholder="e.g. Kalaburagi, Karnataka")
+        city_input = st.text_input("Enter your city or area name",
+                                   placeholder="e.g. Kalaburagi, Karnataka")
         if st.button("🔍 SEARCH"):
             if city_input:
                 try:
@@ -482,8 +507,8 @@ elif page == "⛽ Nearby Fuel Stations":
                         headers={"User-Agent": "CO2Predictor/1.0"}, timeout=5
                     ).json()
                     if geo:
-                        lat  = float(geo[0]["lat"])
-                        lon  = float(geo[0]["lon"])
+                        lat       = float(geo[0]["lat"])
+                        lon       = float(geo[0]["lon"])
                         city_name = geo[0].get("display_name", city_input).split(",")[0]
                         st.session_state["lat"]  = lat
                         st.session_state["lon"]  = lon
@@ -495,76 +520,101 @@ elif page == "⛽ Nearby Fuel Stations":
                     st.error("❌ Search failed. Check internet connection.")
 
         if "lat" in st.session_state:
-            lat  = st.session_state["lat"]
-            lon  = st.session_state["lon"]
+            lat       = st.session_state["lat"]
+            lon       = st.session_state["lon"]
             city_name = st.session_state.get("city", "")
 
-    # Show map + stations
+    # ── Map + Stations
     if lat and lon:
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown(f"### 🗺️ Fuel Stations near {city_name}")
 
-        # Overpass API — get real fuel stations
         try:
-            overpass_url  = "http://overpass-api.de/api/interpreter"
+            overpass_url   = "http://overpass-api.de/api/interpreter"
+            # ✅ FIXED — 10 km radius
             overpass_query = f"""
             [out:json];
-            node["amenity"="fuel"](around:5000,{lat},{lon});
+            node["amenity"="fuel"](around:10000,{lat},{lon});
             out body;
             """
             response = requests.post(overpass_url, data=overpass_query, timeout=10)
             elements = response.json().get("elements", [])
 
             if elements:
-                st.markdown(f"**Found {len(elements)} fuel stations within 5 km!**")
+                st.markdown(f"**Found {len(elements)} fuel stations within 10 km!**")
 
-                # Build DataFrame
                 stations = []
-                for el in elements[:15]:
-                    tags   = el.get("tags", {})
-                    s_lat  = el.get("lat", lat)
-                    s_lon  = el.get("lon", lon)
+                for el in elements[:20]:
+                    tags    = el.get("tags", {})
+                    s_lat   = el.get("lat", lat)
+                    s_lon   = el.get("lon", lon)
                     dist_km = round(((s_lat - lat)**2 + (s_lon - lon)**2)**0.5 * 111, 2)
                     stations.append({
                         "Name"    : tags.get("name", tags.get("brand", "Fuel Station")),
                         "Brand"   : tags.get("brand", "Unknown"),
                         "Distance": f"{dist_km} km",
+                        "dist_val": dist_km,
                         "Lat"     : s_lat,
                         "Lon"     : s_lon,
                         "Address" : tags.get("addr:street", tags.get("addr:city", "—"))
                     })
 
-                station_df = pd.DataFrame(stations).sort_values("Distance")
-                st.dataframe(station_df[["Name","Brand","Distance","Address"]],
-                             use_container_width=True, hide_index=True)
+                # Sort by distance
+                stations = sorted(stations, key=lambda x: x["dist_val"])
 
-                # Map using st.map
-                map_df = pd.DataFrame({
-                    "lat": [s["Lat"] for s in stations],
-                    "lon": [s["Lon"] for s in stations]
+                # Table
+                station_df = pd.DataFrame(stations)
+                st.dataframe(
+                    station_df[["Name", "Brand", "Distance", "Address"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                # ✅ FIXED MAP — Red = You, Green = Fuel Stations
+                map_data = pd.DataFrame({
+                    "lat"  : [lat]  + [s["Lat"] for s in stations],
+                    "lon"  : [lon]  + [s["Lon"] for s in stations],
+                    "size" : [120]  + [50] * len(stations),
+                    "color": [[255, 50, 50, 200]] + [[0, 210, 100, 200]] * len(stations)
                 })
-                st.map(map_df, zoom=13)
 
-                # Nearest station tip
+                st.map(
+                    map_data,
+                    latitude="lat",
+                    longitude="lon",
+                    size="size",
+                    color="color",
+                    zoom=12
+                )
+
+                # Legend
+                st.markdown("""
+                <div class="suggestion-box info" style="display:flex;gap:2rem;">
+                    <span>🔴 <b>Red dot</b> = Your Location</span>
+                    <span>🟢 <b>Green dots</b> = Fuel Stations</span>
+                </div>""", unsafe_allow_html=True)
+
+                # Nearest station
                 nearest = stations[0]
                 st.markdown(f"""
                 <div class="suggestion-box good">
                     ✅ <b>Nearest Station:</b> {nearest['Name']} — {nearest['Distance']} away<br>
-                    📍 Address: {nearest['Address']}
+                    📍 Address: {nearest['Address']}<br>
+                    🧭 Brand: {nearest['Brand']}
                 </div>""", unsafe_allow_html=True)
 
             else:
-                st.warning("⚠️ No fuel stations found in 5 km radius. Try a different location.")
+                st.warning("⚠️ No fuel stations found within 10 km. Try a different location.")
 
-        except Exception as e:
+        except Exception:
             st.error("❌ Could not fetch stations. Check internet connection.")
             st.info("💡 Try searching on Google Maps: 'fuel stations near me'")
 
-        # Fuel prices info
+        # Fuel prices
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("### 💰 Current Approximate Fuel Prices (India)")
         c1, c2, c3, c4, c5 = st.columns(5)
-        for col, (ft, price) in zip([c1,c2,c3,c4,c5], FUEL_PRICES.items()):
+        for col, (ft, price) in zip([c1, c2, c3, c4, c5], FUEL_PRICES.items()):
             col.markdown(f"""<div class="info-card" style="text-align:center">
                 <div style="font-size:0.75rem;color:#8b949e">{FUEL_TYPE_MAP[ft].split('—')[1].strip()}</div>
                 <div class="metric-big" style="font-size:1.5rem">₹{price}</div>
@@ -590,7 +640,6 @@ elif page == "📋 Prediction History":
     if history.empty:
         st.info("📭 No predictions yet! Go to 🏠 Home and make your first prediction.")
     else:
-        # Summary stats
         st.markdown("### 📊 Your Stats")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -616,13 +665,10 @@ elif page == "📋 Prediction History":
             </div>""", unsafe_allow_html=True)
 
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
-
-        # Full history table
         st.markdown("### 📋 All Predictions")
         st.dataframe(history.sort_values("Timestamp", ascending=False),
                      use_container_width=True, hide_index=True)
 
-        # Download button
         csv_data = history.to_csv(index=False)
         st.download_button(
             label="⬇️ Download History as CSV",
@@ -631,7 +677,6 @@ elif page == "📋 Prediction History":
             mime="text/csv"
         )
 
-        # History graph
         if len(history) > 1:
             st.markdown("<hr class='divider'>", unsafe_allow_html=True)
             st.markdown("### 📈 CO2 Trend Over Time")
@@ -640,7 +685,8 @@ elif page == "📋 Prediction History":
             ax.set_facecolor("#161b22")
             ax.plot(range(len(history)), history["CO2 (g/km)"],
                     color="#58a6ff", linewidth=2, marker="o", markersize=6)
-            ax.axhline(avg_co2, color="#f85149", linestyle="--", linewidth=1, label=f"Dataset avg: {avg_co2:.1f}")
+            ax.axhline(avg_co2, color="#f85149", linestyle="--", linewidth=1,
+                       label=f"Dataset avg: {avg_co2:.1f}")
             ax.set_xlabel("Prediction #", color="#8b949e")
             ax.set_ylabel("CO2 (g/km)", color="#8b949e")
             ax.tick_params(colors="#8b949e")
@@ -649,7 +695,6 @@ elif page == "📋 Prediction History":
             plt.tight_layout()
             st.pyplot(fig)
 
-        # Clear history
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         if st.button("🗑️ Clear All History"):
             os.remove(HISTORY_FILE)
