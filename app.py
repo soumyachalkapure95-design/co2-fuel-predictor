@@ -475,8 +475,8 @@ elif page == "⛽ Nearby Fuel Stations":
                                ["📍 Auto-detect (GPS)", "✏️ Type manually"])
 
     lat, lon, city_name = None, None, None
-     if location_method == "📍 Auto-detect (GPS)":
-     st.info("📍 Since this app runs on cloud, auto GPS is not supported. Please use the option below!")
+    if location_method == "📍 Auto-detect (GPS)":
+    st.info("📍 Since this app runs on cloud, auto GPS is not supported. Please use the option below!")
     st.markdown("""
     <div class="suggestion-box warn">
         ⚠️ <b>Why GPS doesn't work on Streamlit Cloud?</b><br>
@@ -485,20 +485,6 @@ elif page == "⛽ Nearby Fuel Stations":
         ✅ <b>Solution:</b> Use the <b>'Type manually'</b> option
         and enter your city name — it works perfectly! 😊
     </div>""", unsafe_allow_html=True)
-```
-
----
-
-## 👉 So the WORKING solution is:
-
-Tell users to use **"Type manually"** option like:
-```
-✏️ Type manually
-→ Enter: Kalaburagi, Karnataka
-→ Click SEARCH
-→ Map shows correctly! ✅
-
-
     else:
         city_input = st.text_input("Enter your city or area name",
                                    placeholder="e.g. Kalaburagi, Karnataka")
